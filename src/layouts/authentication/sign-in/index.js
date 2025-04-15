@@ -35,7 +35,7 @@ function Basic() {
       });
 
       if (response.data.status === "success") {
-        const token = response.data.data.token;
+        const token = response.data.data;
 
         // Store the token in localStorage
         localStorage.setItem("userToken", token);

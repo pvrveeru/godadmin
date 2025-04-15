@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Button,
   Dialog,
@@ -19,6 +19,7 @@ import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import CreateIcon from "@mui/icons-material/Create";
 import DeleteIcon from "@mui/icons-material/Delete";
+import UploadIcon from "@mui/icons-material/Upload";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import api from "../api";
@@ -37,19 +38,98 @@ const SubCategories = () => {
   const [error, setError] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const fileInputRef = useRef(null);
+  const selectedCategoryForUpload = useRef(null);
 
   useEffect(() => {
     fetchCategories();
     fetchMainCategories();
   }, []);
 
-  const fetchCategories = async () => {
-    const token = localStorage.getItem("userToken");
-    if (!token) {
-      setError("User not authenticated. Please log in.");
-      navigate("/authentication/sign-in/");
+  const handleImageOpenDialog = (category) => {
+    selectedCategoryForUpload.current = category;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    const selectedCategory = selectedCategoryForUpload.current;
+    if (!file || !selectedCategory) return;
+
+    const { categoryId: subCategoryId, mainCategoryId: categoryId } = selectedCategory;
+
+    if (!categoryId || !subCategoryId) {
+      console.error("Missing categoryId or subCategoryId");
       return;
     }
+
+    setLoading(true);
+    const token = localStorage.getItem("userToken");
+    if (!token) {
+      setError("User not authenticated.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await api.post(
+        `/upload/subCategory/${categoryId}/${subCategoryId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+            Accept: "*/*",
+          },
+        }
+      );
+
+      console.log("Upload success:", response.data);
+      fetchCategories();
+    } catch (err) {
+      console.error("Upload error:", err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    const token = localStorage.getItem("userToken");
+    if (!token) return;
+
+    try {
+      setLoading(true);
+      const response = await api.get(`/categories/subcategories`, {
+        headers: {
+          Accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const categoryList = response?.data;
+      const formattedCategories = Array.isArray(categoryList)
+        ? categoryList.map((cat) => ({
+            categoryId: cat.id,
+            categoryName: cat.name,
+            categoryImage: cat.imageUrl,
+            createdAt: cat.createdAt,
+            mainCategoryId: cat.categoryId,
+          }))
+        : [];
+
+      setCategories(formattedCategories);
+    } catch (err) {
+      setError("Failed to load subcategories.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMainCategories = async () => {
+    const token = localStorage.getItem("userToken");
+    if (!token) return;
 
     try {
       setLoading(true);
@@ -60,40 +140,22 @@ const SubCategories = () => {
         },
       });
 
-      const data = response?.data?.category || response?.data || [];
+      const data = response.data.categories || [];
 
-      const formattedCategories = Array.isArray(data)
+      const formatted = Array.isArray(data)
         ? data.map((cat) => ({
             categoryId: cat.id,
             categoryName: cat.name,
             categoryImage: cat.imageUrl,
-            //Category: category?.mainCategoryId,
             createdAt: cat.createdAt,
-            mainCategoryId: cat.mainCategoryId,
           }))
         : [];
 
-      setCategories(formattedCategories);
+      setAllMainCategories(formatted);
     } catch (err) {
-      setError("Failed to load categories. Please try again later.");
+      setError("Failed to load main categories.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchMainCategories = async () => {
-    const token = localStorage.getItem("userToken");
-    try {
-      const response = await api.get("/categories", {
-        headers: {
-          Accept: "*/*",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setAllMainCategories(response.data || []);
-    } catch (err) {
-      console.error("Error fetching main categories:", err);
     }
   };
 
@@ -116,18 +178,19 @@ const SubCategories = () => {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
   const handleFormSubmit = useCallback(async () => {
+    if (!formData || !formData.categoryName || !formData.mainCategoryId) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
     try {
       setLoading(true);
       const token = localStorage.getItem("userToken");
-      if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
-        return;
-      }
+      if (!token) return;
 
       const headers = {
         Accept: "*/*",
@@ -140,21 +203,30 @@ const SubCategories = () => {
           {
             name: formData.categoryName,
             imageUrl: formData.categoryImage,
-            mainCategoryId: formData.mainCategoryId,
+            categoryId: formData.mainCategoryId,
           },
           { headers }
         );
       } else {
         const response = await api.post(
-          "/categories",
+          "/categories/subcategory",
           {
             name: formData.categoryName,
-            imageUrl: formData.categoryImage,
-            mainCategoryId: formData.mainCategoryId,
+            categoryId: formData.mainCategoryId,
           },
           { headers }
         );
-        setCategories([...categories, response.data.data]);
+        const newCategory = response.data.data;
+        setCategories((prev) => [
+          ...prev,
+          {
+            categoryId: newCategory.id,
+            categoryName: newCategory.name,
+            categoryImage: newCategory.imageUrl,
+            createdAt: newCategory.createdAt,
+            mainCategoryId: newCategory.categoryId,
+          },
+        ]);
       }
 
       handleCloseDialog();
@@ -170,11 +242,7 @@ const SubCategories = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("userToken");
-      if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
-        return;
-      }
+      if (!token) return;
 
       await api.delete(`/event-category/${categoryToDelete.categoryId}`, {
         headers: {
@@ -255,116 +323,134 @@ const SubCategories = () => {
                         </tr>
                       </thead>
                       <tbody style={{ textAlign: "center" }}>
-                        {categories.map((category) => (
-                          <tr key={category.categoryId}>
-                            <td style={tableCellStyle}>
-                              {allMainCategories.find((main) => main.id === category.mainCategoryId)
-                                ?.name || "N/A"}
-                            </td>
-                            <td style={tableCellStyle}>{category.categoryName}</td>
-                            <td style={tableCellStyle}>
-                              {category.categoryImage ? (
-                                <img
-                                  src={category.categoryImage}
-                                  alt="category"
-                                  style={{ width: 100, height: 80, objectFit: "cover" }}
-                                />
-                              ) : (
-                                "No Image"
-                              )}
-                            </td>
-                            <td style={tableCellStyle}>
-                              {new Date(category.createdAt).toLocaleDateString()}
-                            </td>
-                            <td style={tableCellStyle}>
-                              <MDButton
-                                style={{ marginRight: "10px" }}
-                                variant="gradient"
-                                color="info"
-                                onClick={() => handleOpenDialog(category)}
-                              >
-                                <CreateIcon />
-                              </MDButton>
-                              <MDButton
-                                style={{ marginLeft: "10px" }}
-                                variant="gradient"
-                                color="error"
-                                onClick={() => {
-                                  setIsDeleteConfirmOpen(true);
-                                  setCategoryToDelete(category);
-                                }}
-                              >
-                                <DeleteIcon />
-                              </MDButton>
-                            </td>
-                          </tr>
-                        ))}
+                        {categories.map((category) => {
+                          const mainCategory = allMainCategories.find(
+                            (mainCat) => mainCat.categoryId === category.mainCategoryId
+                          );
+                          return (
+                            <tr key={category.categoryId}>
+                              <td style={tableCellStyle}>
+                                {mainCategory ? mainCategory.categoryName : "N/A"}
+                              </td>
+                              <td style={tableCellStyle}>{category.categoryName}</td>
+                              <td style={tableCellStyle}>
+                                {category.categoryImage ? (
+                                  <img
+                                    src={category.categoryImage}
+                                    alt="category"
+                                    style={{ width: 100, height: 80, objectFit: "cover" }}
+                                  />
+                                ) : (
+                                  "No Image"
+                                )}
+                                <MDButton
+                                  style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                  variant="gradient"
+                                  color="warning"
+                                  onClick={() => handleImageOpenDialog(category)}
+                                >
+                                  <UploadIcon />
+                                </MDButton>
+                              </td>
+                              <td style={tableCellStyle}>
+                                {new Date(category.createdAt).toLocaleDateString()}
+                              </td>
+                              <td style={tableCellStyle}>
+                                <MDButton
+                                  style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                  variant="gradient"
+                                  color="info"
+                                  onClick={() => handleOpenDialog(category)}
+                                >
+                                  <CreateIcon />
+                                </MDButton>
+                                {/* <MDButton
+                                  style={{ marginLeft: "10px" }}
+                                  variant="gradient"
+                                  color="error"
+                                  onClick={() => {
+                                    setIsDeleteConfirmOpen(true);
+                                    setCategoryToDelete(category);
+                                  }}
+                                >
+                                  <DeleteIcon />
+                                </MDButton> */}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </TableContainer>
                 )}
 
-                {/* Add/Edit Dialog */}
+                {/* File input for upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+
                 <Dialog open={isDialogOpen} onClose={handleCloseDialog}>
-                  <DialogTitle>
-                    {editingCategory ? "Edit Sub Category" : "Add Sub Category"}
+                  <DialogTitle
+                    style={{
+                      maxWidth: "500px", // Restricts maximum size
+                      width: "500px", // Allows full width within the grid system
+                    }}
+                  >
+                    {editingCategory ? "Edit Category" : "Add Category"}
                   </DialogTitle>
                   <DialogContent>
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel>Select Main Category</InputLabel>
+                    <FormControl fullWidth>
+                      <InputLabel id="mainCategoryLabel">Main Category</InputLabel>
                       <Select
+                        labelId="mainCategoryLabel"
+                        id="mainCategory"
                         name="mainCategoryId"
-                        value={formData.mainCategoryId}
+                        value={formData?.mainCategoryId || ""}
                         onChange={handleFormChange}
-                        label="Select Main Category"
+                        fullWidth
                       >
-                        {allMainCategories.map((main) => (
-                          <MenuItem key={main.id} value={main.id}>
-                            {main.name}
+                        {allMainCategories.map((mainCategory) => (
+                          <MenuItem key={mainCategory.categoryId} value={mainCategory.categoryId}>
+                            {mainCategory.categoryName}
                           </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
                     <TextField
+                      margin="normal"
+                      id="categoryName"
+                      label="Category Name"
+                      fullWidth
                       name="categoryName"
-                      label="Sub Category Name"
-                      fullWidth
-                      margin="normal"
-                      value={formData.categoryName}
-                      onChange={handleFormChange}
-                    />
-                    <TextField
-                      name="categoryImage"
-                      label="Image URL"
-                      fullWidth
-                      margin="normal"
-                      value={formData.categoryImage}
+                      value={formData?.categoryName || ""}
                       onChange={handleFormChange}
                     />
                   </DialogContent>
                   <DialogActions>
-                    <Button onClick={handleCloseDialog}>Cancel</Button>
-                    <Button onClick={handleFormSubmit} disabled={loading}>
-                      {loading ? "Submitting..." : "Submit"}
+                    <Button onClick={handleCloseDialog} color="primary">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleFormSubmit} color="primary" disabled={loading}>
+                      {editingCategory ? "Save Changes" : "Add Category"}
                     </Button>
                   </DialogActions>
                 </Dialog>
 
-                {/* Delete Confirmation */}
                 <Dialog open={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)}>
-                  <DialogTitle>Confirm Deletion</DialogTitle>
-                  <DialogContent>
-                    Are you sure you want to delete &quot;{categoryToDelete?.categoryName}&quot;?
-                  </DialogContent>
+                  <DialogTitle>Confirm Delete</DialogTitle>
+                  <DialogContent>Are you sure you want to delete this category?</DialogContent>
                   <DialogActions>
-                    <Button onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
-                    <Button onClick={handleDeleteCategory} color="error" disabled={loading}>
-                      {loading ? "Deleting..." : "Delete"}
+                    <Button onClick={() => setIsDeleteConfirmOpen(false)} color="primary">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleDeleteCategory} color="primary">
+                      Confirm
                     </Button>
                   </DialogActions>
                 </Dialog>
-
-                {error && <p style={{ color: "red" }}>{error}</p>}
               </MDBox>
             </Card>
           </Grid>

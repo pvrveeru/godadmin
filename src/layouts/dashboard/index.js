@@ -48,37 +48,6 @@ function Dashboard() {
   });
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      const token = localStorage.getItem("userToken");
-      if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
-        return;
-      }
-
-      const url = `/events/dropdown?sortBy=createdAt&sortOrder=asc&limit=100&offset=`;
-
-      try {
-        const response = await api.get(url, {
-          headers: {
-            Accept: "*/*",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const eventData = response.data.data;
-        if (Array.isArray(eventData)) {
-          setEvents(eventData);
-          console.log("Events State after setting:", eventData);
-        } else {
-          console.error("Data format is not an array:", eventData);
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      }
-    };
-
-    fetchEvents();
     setIsDateDisabled(false);
     setStartDate();
     setEndDate();

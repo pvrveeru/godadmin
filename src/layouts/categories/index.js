@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Button,
   Dialog,
@@ -16,19 +16,22 @@ import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import CreateIcon from "@mui/icons-material/Create";
 import DeleteIcon from "@mui/icons-material/Delete";
+import UploadIcon from "@mui/icons-material/Upload";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import api from "../api";
 
 const Categories = () => {
-  const [categories, setCategories] = useState([]); // List of categories
-  const [formData, setFormData] = useState({ categories: "" }); // Form data
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // Dialog state
-  const [editingCategory, setEditingCategory] = useState(null); // Editing state
-  const [loading, setLoading] = useState(false); // Loading state
-  const [error, setError] = useState(""); // Error message
+  const [categories, setCategories] = useState([]);
+  const [formData, setFormData] = useState({ categoryName: "", categoryImage: "" });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const fileInputRef = useRef(null);
+  const selectedCategoryForUpload = useRef(null);
 
   useEffect(() => {
     fetchCategories();
@@ -38,7 +41,6 @@ const Categories = () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
       setError("User not authenticated. Please log in.");
-      navigate("/authentication/sign-in/");
       return;
     }
 
@@ -51,11 +53,9 @@ const Categories = () => {
         },
       });
 
-      console.log("API response:", response.data);
+      const data = response.data.categories || [];
 
-      const data = response.data.category || response.data || [];
-
-      const formattedCategories = Array.isArray(data)
+      const formatted = Array.isArray(data)
         ? data.map((cat) => ({
             categoryId: cat.id,
             categoryName: cat.name,
@@ -64,14 +64,50 @@ const Categories = () => {
           }))
         : [];
 
-      setCategories(formattedCategories);
+      setCategories(formatted);
     } catch (err) {
-      console.error("Error fetching categories:", err);
-      if (err.response) {
-        console.error("Status:", err.response.status);
-        console.error("Data:", err.response.data);
-      }
-      setError("Failed to load categories. Please try again later.");
+      setError("Failed to load categories.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageOpenDialog = (category) => {
+    selectedCategoryForUpload.current = category;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedCategoryForUpload.current) return;
+
+    setLoading(true);
+    const token = localStorage.getItem("userToken");
+    if (!token) {
+      setError("User not authenticated.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file); // ✅ match the expected field name
+
+    try {
+      const response = await api.post(
+        `/upload/category/${selectedCategoryForUpload.current.categoryId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`, // ✅ now included
+            Accept: "*/*",
+          },
+        }
+      );
+
+      console.log("Upload success:", response.data);
+      fetchCategories();
+    } catch (err) {
+      console.error("Upload error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -88,7 +124,7 @@ const Categories = () => {
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
-    setFormData({ categories: "", categoryImage: "" });
+    setFormData({ categoryName: "", categoryImage: "" });
     setEditingCategory(null);
     setError("");
   };
@@ -103,8 +139,7 @@ const Categories = () => {
       setLoading(true);
       const token = localStorage.getItem("userToken");
       if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
+        setError("User not authenticated.");
         return;
       }
 
@@ -117,8 +152,8 @@ const Categories = () => {
         await api.put(
           `/categories/${editingCategory.categoryId}`,
           {
-            categoryName: formData.categoryName,
-            categoryImage: formData.categoryImage,
+            name: formData.categoryName,
+            imageUrl: formData.categoryImage,
           },
           { headers }
         );
@@ -126,30 +161,37 @@ const Categories = () => {
         const response = await api.post(
           "/categories",
           {
-            categoryName: formData.categoryName,
-            categoryImage: formData.categoryImage,
+            name: formData.categoryName,
+            imageUrl: formData.categoryImage,
           },
           { headers }
         );
-        setCategories([...categories, response.data.data]);
+
+        const newCategory = {
+          categoryId: response.data.category.id,
+          categoryName: response.data.category.name,
+          categoryImage: response.data.category.imageUrl,
+          createdAt: response.data.category.updatedAt,
+        };
+
+        setCategories((prev) => [...prev, newCategory]);
       }
 
       handleCloseDialog();
-      fetchCategories(); // Fetch updated categories after edit/add
+      fetchCategories();
     } catch (err) {
-      setError("Failed to submit. Please try again.");
+      setError("Failed to submit.");
     } finally {
       setLoading(false);
     }
-  }, [formData, editingCategory, categories]);
+  }, [formData, editingCategory]);
 
   const handleDeleteCategory = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("userToken");
       if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
+        setError("User not authenticated.");
         return;
       }
 
@@ -160,11 +202,10 @@ const Categories = () => {
         },
       });
 
-      setCategories(categories.filter((c) => c.categoryId !== categoryToDelete.categoryId));
+      setCategories((prev) => prev.filter((c) => c.categoryId !== categoryToDelete.categoryId));
       setIsDeleteConfirmOpen(false);
-      setCategoryToDelete(null);
     } catch (err) {
-      setError("Failed to delete category. Please try again.");
+      setError("Delete failed.");
     } finally {
       setLoading(false);
     }
@@ -174,9 +215,7 @@ const Categories = () => {
 
   return (
     <DashboardLayout>
-      <div className="hide-on-desktop">
-        <DashboardNavbar />
-      </div>
+      <DashboardNavbar />
       <MDBox pt={3} pb={3}>
         <Grid container spacing={6}>
           <Grid item xs={12}>
@@ -196,24 +235,25 @@ const Categories = () => {
                     <Grid item xs={12} sm={9}>
                       <h2>Categories</h2>
                     </Grid>
-                    <Grid item xs={12} sm={2}>
+                    <Grid item xs={12} sm={3}>
                       <MDButton
                         variant="gradient"
                         color="success"
                         fullWidth
                         onClick={() => handleOpenDialog()}
                       >
-                        Add Categories
+                        Add Category
                       </MDButton>
                     </Grid>
                   </Grid>
                 </MDTypography>
               </MDBox>
+
               <MDBox pt={3} px={2}>
                 {loading ? (
                   <p>Loading...</p>
                 ) : (
-                  <TableContainer component={Paper} style={{ borderRadius: 0, boxShadow: "none" }}>
+                  <TableContainer component={Paper}>
                     <table
                       style={{
                         width: "100%",
@@ -231,51 +271,70 @@ const Categories = () => {
                         </tr>
                       </thead>
                       <tbody style={{ textAlign: "center" }}>
-                        {Array.isArray(categories) &&
-                          categories.map((category) => (
-                            <tr key={category.categoryId}>
-                              <td style={tableCellStyle}>{category.categoryName}</td>
-                              <td style={tableCellStyle}>
-                                {category.categoryImage ? (
-                                  <img
-                                    src={category.categoryImage}
-                                    alt="category"
-                                    style={{ width: 100, height: 80, objectFit: "cover" }}
-                                  />
-                                ) : (
-                                  "No Image"
-                                )}
-                              </td>
-                              <td style={tableCellStyle}>
-                                {new Date(category.createdAt).toLocaleDateString()}
-                              </td>
-                              <td style={tableCellStyle}>
-                                <MDButton
-                                  style={{ marginRight: "10px" }}
-                                  variant="gradient"
-                                  color="info"
-                                  onClick={() => handleOpenDialog(category)}
-                                >
-                                  <CreateIcon />
-                                </MDButton>
-                                <MDButton
-                                  style={{ marginLeft: "10px" }}
-                                  variant="gradient"
-                                  color="error"
-                                  onClick={() => {
-                                    setIsDeleteConfirmOpen(true);
-                                    setCategoryToDelete(category);
-                                  }}
-                                >
-                                  <DeleteIcon />
-                                </MDButton>
-                              </td>
-                            </tr>
-                          ))}
+                        {categories.map((category) => (
+                          <tr key={category.id}>
+                            <td style={tableCellStyle}>{category.categoryName}</td>
+                            <td
+                              style={{ ...tableCellStyle, display: "flex", alignItems: "center" }}
+                            >
+                              {category.categoryImage ? (
+                                <img
+                                  src={category.categoryImage}
+                                  alt="category"
+                                  style={{ width: 100, height: 80, objectFit: "cover" }}
+                                />
+                              ) : (
+                                "No Image"
+                              )}
+                              <MDButton
+                                style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                variant="gradient"
+                                color="warning"
+                                onClick={() => handleImageOpenDialog(category)}
+                              >
+                                <UploadIcon />
+                              </MDButton>
+                            </td>
+                            <td style={tableCellStyle}>
+                              {new Date(category.createdAt).toLocaleDateString()}
+                            </td>
+                            <td style={tableCellStyle}>
+                              <MDButton
+                                style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                variant="gradient"
+                                color="info"
+                                onClick={() => handleOpenDialog(category)}
+                              >
+                                <CreateIcon />
+                              </MDButton>
+                              {/* <MDButton
+                                style={{ marginLeft: "10px" }}
+                                variant="gradient"
+                                color="error"
+                                onClick={() => {
+                                  setIsDeleteConfirmOpen(true);
+                                  setCategoryToDelete(category);
+                                }}
+                              >
+                                <DeleteIcon />
+                              </MDButton> */}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </TableContainer>
                 )}
+
+                {/* File input for upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+
+                {/* Add/Edit Dialog */}
                 <Dialog open={isDialogOpen} onClose={handleCloseDialog}>
                   <DialogTitle
                     style={{
@@ -294,14 +353,6 @@ const Categories = () => {
                       value={formData.categoryName}
                       onChange={handleFormChange}
                     />
-                    <TextField
-                      name="categoryImage"
-                      label="Category Image"
-                      fullWidth
-                      margin="normal"
-                      value={formData.categoryImage}
-                      onChange={handleFormChange}
-                    />
                   </DialogContent>
                   <DialogActions>
                     <Button onClick={handleCloseDialog}>Cancel</Button>
@@ -310,26 +361,21 @@ const Categories = () => {
                     </Button>
                   </DialogActions>
                 </Dialog>
+
+                {/* Delete Confirmation Dialog */}
                 <Dialog open={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)}>
-                  <DialogTitle
-                    style={{
-                      maxWidth: "500px", // Restricts maximum size
-                      width: "500px", // Allows full width within the grid system
-                    }}
-                  >
-                    Confirm Deletion
-                  </DialogTitle>
+                  <DialogTitle>Confirm Deletion</DialogTitle>
                   <DialogContent>
-                    Are you sure you want to delete &quot;{categoryToDelete?.name}&quot;?
+                    Are you sure you want to delete{" "}
+                    <strong>{categoryToDelete?.categoryName}</strong>?
                   </DialogContent>
                   <DialogActions>
                     <Button onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
-                    <Button onClick={handleDeleteCategory} color="error" disabled={loading}>
-                      {loading ? "Deleting..." : "Delete"}
+                    <Button onClick={handleDeleteCategory} color="error">
+                      Delete
                     </Button>
                   </DialogActions>
                 </Dialog>
-                {error && <p style={{ color: "red" }}>{error}</p>}
               </MDBox>
             </Card>
           </Grid>
