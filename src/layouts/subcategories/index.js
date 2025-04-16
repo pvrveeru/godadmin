@@ -216,7 +216,7 @@ const SubCategories = () => {
           },
           { headers }
         );
-        const newCategory = response.data.data;
+        const newCategory = response.data;
         setCategories((prev) => [
           ...prev,
           {
