@@ -37,7 +37,7 @@ dayjs.extend(localizedFormat);
 dayjs.extend(isBetween);
 dayjs.extend(advancedFormat);
 
-function FinanceReports() {
+function RaisedRequest() {
   const [startDate, setStartDate] = useState(dayjs());
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,40 +52,46 @@ function FinanceReports() {
   const [isEventIdDisabled, setIsEventIdDisabled] = useState(false);
   const [isDateDisabled, setIsDateDisabled] = useState(false);
   const [tableData, setTableData] = useState([]);
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [allMainCategories, setAllMainCategories] = useState([]);
+  const [formData, setFormData] = useState({
+    mainCategoryId: "",
+  });
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchMainCategories = async () => {
       const token = localStorage.getItem("userToken");
-      if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
-        return;
-      }
-
-      const url = `/events/dropdown?sortBy=createdAt&sortOrder=asc&limit=100&offset=0`;
+      if (!token) return;
 
       try {
-        const response = await api.get(url, {
+        setLoading(true);
+        const response = await api.get(`/categories`, {
           headers: {
             Accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
         });
-        console.log("Full API Response:", response.data);
 
-        const eventData = response.data.data;
-        if (Array.isArray(eventData)) {
-          setEvents(eventData);
-          console.log("Events State after setting:", eventData);
-        } else {
-          console.error("Data format is not an array:", eventData);
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
+        const data = response.data.categories || [];
+
+        const formatted = Array.isArray(data)
+          ? data.map((cat) => ({
+              categoryId: cat.id,
+              categoryName: cat.name,
+              categoryImage: cat.imageUrl,
+              createdAt: cat.createdAt,
+            }))
+          : [];
+
+        setAllMainCategories(formatted);
+      } catch (err) {
+        setError("Failed to load main categories.");
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchEvents();
+    fetchMainCategories();
     setIsDateDisabled(false);
     setStartDate();
     setEndDate();
@@ -197,7 +203,7 @@ function FinanceReports() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  <h2>Hiring Request</h2>
+                  <h2>Raised Request Reports</h2>
                 </MDTypography>
               </MDBox>
               <MDBox pt={3} px={2}>
@@ -207,25 +213,18 @@ function FinanceReports() {
                       <b style={{ lineHeight: "60px", marginLeft: "10px" }}>Search by</b>
                       <Grid item xs={12} sm={2}>
                         <Select
+                          labelId="mainCategoryLabel"
+                          id="mainCategory"
+                          name="mainCategoryId"
+                          value={formData?.mainCategoryId || ""}
                           fullWidth
-                          displayEmpty
-                          variant="outlined"
-                          value={selectedEventId}
-                          onChange={handleSelectChange}
-                          disabled={isEventIdDisabled}
-                          style={{
-                            border: "1px solid #ccc",
-                            lineHeight: "40px",
-                            boxShadow: "none",
-                          }}
-                          defaultValue=""
                         >
                           <MenuItem value="">
                             <em>Select an category</em>
                           </MenuItem>
-                          {events.map((event) => (
-                            <MenuItem key={event.eventId} value={event.eventId}>
-                              {event.title}
+                          {allMainCategories.map((mainCategory) => (
+                            <MenuItem key={mainCategory.categoryId} value={mainCategory.categoryId}>
+                              {mainCategory.categoryName}
                             </MenuItem>
                           ))}
                         </Select>
@@ -264,7 +263,7 @@ function FinanceReports() {
                         </MDButton>
                         <MDButton
                           variant="gradient"
-                          color="info"
+                          color="error"
                           fullWidth
                           onClick={handleClearSearch}
                         >
@@ -381,7 +380,7 @@ function FinanceReports() {
                           </>
                         ) : (
                           <p style={{ textAlign: "center", margin: "20px 0" }}>
-                            No finance data available
+                            No Raised Request data available
                           </p>
                         )}
                       </TableContainer>
@@ -397,4 +396,4 @@ function FinanceReports() {
   );
 }
 
-export default FinanceReports;
+export default RaisedRequest;

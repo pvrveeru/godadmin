@@ -2,8 +2,8 @@
 import Dashboard from "layouts/dashboard";
 import SignIn from "layouts/authentication/sign-in";
 import Registration from "layouts/registration";
-import Eventsreports from "layouts/eventsreports";
-import Financereports from "layouts/financereports";
+import HiringRequest from "layouts/hiringrequest";
+import RaisedRequest from "layouts/raisedrequest";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
@@ -67,18 +67,18 @@ const routes = [
   {
     type: "collapse",
     name: "Raised Request",
-    key: "eventsreports",
+    key: "raisedrequest",
     icon: <AssignmentTurnedInIcon sx={{ fontSize: "30px !important" }} />,
-    route: "/eventsreports",
-    component: <Eventsreports />,
+    route: "/raisedrequest",
+    component: <RaisedRequest />,
   },
   {
     type: "collapse",
     name: "Hiring Reports",
-    key: "financereports",
+    key: "hiringrequest",
     icon: <VerifiedUserIcon sx={{ fontSize: "26px !important" }} />,
-    route: "/financereports",
-    component: <Financereports />,
+    route: "/hiringrequest",
+    component: <HiringRequest />,
   },
   {
     type: "collapse",
