@@ -277,7 +277,12 @@ const Categories = () => {
                           <tr key={category.id}>
                             <td style={tableCellStyle}>{category.categoryName}</td>
                             <td
-                              style={{ ...tableCellStyle, display: "flex", alignItems: "center" }}
+                              style={{
+                                ...tableCellStyle,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
                             >
                               {category.categoryImage ? (
                                 <img
@@ -289,7 +294,7 @@ const Categories = () => {
                                 "No Image"
                               )}
                               <MDButton
-                                style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                style={{ marginLeft: "30px", maxWidth: "20px", minWidth: "20px" }}
                                 variant="gradient"
                                 color="warning"
                                 onClick={() => handleImageOpenDialog(category)}

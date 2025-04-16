@@ -333,7 +333,14 @@ const SubCategories = () => {
                                 {mainCategory ? mainCategory.categoryName : "N/A"}
                               </td>
                               <td style={tableCellStyle}>{category.categoryName}</td>
-                              <td style={tableCellStyle}>
+                              <td
+                                style={{
+                                  ...tableCellStyle,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
                                 {category.categoryImage ? (
                                   <img
                                     src={category.categoryImage}
@@ -344,7 +351,7 @@ const SubCategories = () => {
                                   "No Image"
                                 )}
                                 <MDButton
-                                  style={{ marginLeft: "10px", maxWidth: "20px" }}
+                                  style={{ marginLeft: "30px", maxWidth: "20px", minWidth: "20px" }}
                                   variant="gradient"
                                   color="warning"
                                   onClick={() => handleImageOpenDialog(category)}
