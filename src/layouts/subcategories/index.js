@@ -108,7 +108,7 @@ const SubCategories = () => {
         },
       });
 
-      const categoryList = response?.data;
+      const categoryList = response?.data?.data;
       const formattedCategories = Array.isArray(categoryList)
         ? categoryList.map((cat) => ({
             categoryId: cat.id,
