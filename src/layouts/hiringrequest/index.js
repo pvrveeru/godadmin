@@ -226,6 +226,9 @@ function HiringRequest() {
                           name="mainCategoryId"
                           value={formData?.mainCategoryId || ""}
                           fullWidth
+                          style={{
+                            lineHeight: "40px",
+                          }}
                         >
                           <MenuItem value="">
                             <em>Select an category</em>
