@@ -219,7 +219,7 @@ function HiringRequest() {
                   <MDBox p={3}>
                     <Grid container spacing={2}>
                       <b style={{ lineHeight: "60px", marginLeft: "10px" }}>Search by</b>
-                      <Grid item xs={12} sm={2}>
+                      <Grid item xs={12} sm={3}>
                         <Select
                           labelId="mainCategoryLabel"
                           id="mainCategory"
@@ -227,7 +227,7 @@ function HiringRequest() {
                           value={formData?.mainCategoryId || ""}
                           fullWidth
                           style={{
-                            lineHeight: "40px",
+                            lineHeight: "44px",
                           }}
                         >
                           <MenuItem value="">
