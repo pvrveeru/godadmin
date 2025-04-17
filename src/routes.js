@@ -19,7 +19,8 @@ import StyleIcon from "@mui/icons-material/Style";
 import Categories from "layouts/categories";
 import Subcategories from "layouts/subcategories";
 import Departments from "layouts/departments";
-import EventRegistration from "layouts/eventregistration";
+import GeekRegistration from "layouts/geekregistration";
+
 // @mui icons
 import Icon from "@mui/material/Icon";
 
@@ -51,10 +52,10 @@ const routes = [
   {
     type: "collapse",
     name: "Geek Registrations",
-    key: "eventregistration",
+    key: "geekregistration",
     icon: <SwitchAccountIcon sx={{ fontSize: "26px !important" }} />,
-    route: "/eventregistration",
-    component: <EventRegistration />,
+    route: "/geekregistration",
+    component: <GeekRegistration />,
   },
   {
     type: "collapse",

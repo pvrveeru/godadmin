@@ -199,7 +199,7 @@ const SubCategories = () => {
 
       if (editingCategory) {
         await api.put(
-          `/categories/${editingCategory.categoryId}`,
+          `/categories/subcategory/${editingCategory.categoryId}`,
           {
             name: formData.categoryName,
             imageUrl: formData.categoryImage,

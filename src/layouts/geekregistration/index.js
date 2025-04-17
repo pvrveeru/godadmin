@@ -23,7 +23,7 @@ import Paper from "@mui/material/Paper";
 import MDButton from "components/MDButton";
 import api from "../api";
 
-function EventRegistration() {
+function GeekRegistration() {
   const [startDate, setStartDate] = useState(dayjs());
   const [endDate, setEndDate] = useState(dayjs());
   const [rows, setRows] = useState([]);
@@ -33,8 +33,6 @@ function EventRegistration() {
   const [loading, setLoading] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0); // Added to track total bookings
 
-  const apiUrl = "http://64.227.157.67:5001/api/v1/users";
-
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
@@ -43,7 +41,7 @@ function EventRegistration() {
       return;
     }
 
-    const url = `/users`;
+    const url = `/profiles/search`;
 
     setLoading(true);
     try {
@@ -55,12 +53,13 @@ function EventRegistration() {
         params: {
           startDate: startDate.format("YYYY-MM-DD"),
           endDate: endDate.format("YYYY-MM-DD"),
+          user_type: "geeker", // ✅ Only fetch seekers
         },
       });
-      const users = response.data.data;
-      const totalNoOfRecords = response.data.data.length;
-      setRows(users);
-      setTotalUsers(totalNoOfRecords); // Update total bookings count
+
+      const seekerUsers = response.data.data || [];
+      setRows(seekerUsers);
+      setTotalUsers(seekerUsers.length);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -81,14 +80,14 @@ function EventRegistration() {
   // Filtered data for search and pagination
   const filteredRows = rows
     .filter((row) => {
-      const firstName = row.firstName || "";
-      const lastName = row.lastName || "";
       const email = row.email || "";
+      const address = row.address || "";
+      const displayName = row.display_name || "";
 
       return (
-        firstName.toLowerCase().includes(searchQuery) ||
-        lastName.toLowerCase().includes(searchQuery) ||
-        email.toLowerCase().includes(searchQuery)
+        email.toLowerCase().includes(searchQuery) ||
+        address.toLowerCase().includes(searchQuery) ||
+        displayName.toLowerCase().includes(searchQuery)
       );
     })
     .slice(page * rowsPerPage, (page + 1) * rowsPerPage);
@@ -181,15 +180,17 @@ function EventRegistration() {
                               >
                                 <thead style={{ background: "#efefef", fontSize: "14px" }}>
                                   <tr>
-                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>ID</th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      First Name
+                                      Name
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Phone Number
+                                      Phone
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Email
+                                    </th>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      City
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Registration Date
@@ -198,19 +199,21 @@ function EventRegistration() {
                                 </thead>
                                 <tbody style={{ fontSize: "15px" }}>
                                   {filteredRows.map((row) => (
-                                    <tr key={row.userId}>
+                                    <tr key={row.id}>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.userId || "N/A"}
+                                        {row.user?.first_name || "N/A"}{" "}
+                                        {row.user?.last_name || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.firstName || "N/A"} {row.lastName || "N/A"}
+                                        {row.user?.phone || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.phoneNumber || "N/A"}
+                                        {row.user?.email || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.email || "N/A"}
+                                        {row.city || "N/A"}
                                       </td>
+
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.createdAt
                                           ? dayjs(row.createdAt).format("DD-MM-YYYY")
@@ -271,4 +274,4 @@ function EventRegistration() {
   );
 }
 
-export default EventRegistration;
+export default GeekRegistration;
