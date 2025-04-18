@@ -1,94 +1,38 @@
-import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
-import Button from "@mui/material/Button";
-import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import { saveAs } from "file-saver";
-import Pagination from "@mui/material/Pagination";
 import TextField from "@mui/material/TextField";
 import { useNavigate } from "react-router-dom";
-import CircularProgress from "@mui/material/CircularProgress";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-
+import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import MDButton from "components/MDButton";
-import api from "../api";
-import "../styles.css"; // Import the CSS file
 import ComplexStatisticsCard from "examples/Cards/StatisticsCards/ComplexStatisticsCard";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import api from "../api";
 
 function Dashboard() {
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [rows, setRows] = useState([]);
-  const [rdata, setRdata] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const [encodedFlightNumber, setEncodedFlightNumber] = useState(""); // New state for encoded flight number
-  const [isEventIdDisabled, setIsEventIdDisabled] = useState(false);
+  const [startDate, setStartDate] = useState(dayjs());
+  const [endDate, setEndDate] = useState(dayjs());
   const [isDateDisabled, setIsDateDisabled] = useState(false);
-  const [tableData, setTableData] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [events, setEvents] = useState([]);
-
   const [summaryData, setSummaryData] = useState({
-    totalBookings: 0,
-    users: 0,
-    totalRevenue: 0,
+    geekerCount: 0,
+    seekerCount: 0,
+    acceptedCount: 0,
+    pendingCount: 0,
   });
+  const navigate = useNavigate();
 
   useEffect(() => {
-    setIsDateDisabled(false);
-    setStartDate();
-    setEndDate();
+    fetchSummaryData();
   }, []);
 
-  const handleSelectChange = (event) => {
-    setSelectedEventId(event.target.value);
-    if (event.target.value) {
-      setIsDateDisabled(true);
-      setStartDate(null);
-      setEndDate(null);
-    } else {
-      setIsDateDisabled(false);
-    }
-  };
-
-  const handleStartDateChange = (date) => {
-    setStartDate(date);
-    if (date) {
-      setIsEventIdDisabled(true);
-      setSelectedEventId("");
-    } else {
-      setIsEventIdDisabled(false);
-    }
-  };
-
-  const handleEndDateChange = (date) => {
-    setEndDate(date);
-    if (date) {
-      setIsEventIdDisabled(true);
-      setSelectedEventId("");
-    } else {
-      setIsEventIdDisabled(false);
-    }
-  };
-
-  // Handle search button click
-  const handleSearch = async () => {
+  const fetchSummaryData = async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
-      setError("User not authenticated. Please log in.");
       navigate("/authentication/sign-in/");
       return;
     }
@@ -99,24 +43,13 @@ function Dashboard() {
     };
 
     try {
-      let url = "";
-      if (selectedEventId) {
-        url = `/admin/getSummaryData?eventId=${selectedEventId}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
-      } else if (startDate && endDate) {
-        const formattedStartDate = startDate.format("YYYY-MM-DD");
-        const formattedEndDate = endDate.format("YYYY-MM-DD");
-        url = `/admin/getSummaryData?startDate=${formattedStartDate}&endDate=${formattedEndDate}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
-      } else {
-        console.error("Please select either an event or a date range.");
-        return;
-      }
+      const formattedStartDate = startDate.format("YYYY-MM-DD");
+      const formattedEndDate = endDate.format("YYYY-MM-DD");
+      const url = `/admin/stats?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
 
       const response = await api.get(url, { headers });
-
       if (response.data && response.data.data) {
         setSummaryData(response.data.data);
-      } else {
-        console.error("Unexpected response structure:", response);
       }
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -124,13 +57,9 @@ function Dashboard() {
   };
 
   const handleClearSearch = () => {
-    setSelectedEventId(""); // Reset the selected event
-    setStartDate(null); // Clear the start date
-    setEndDate(null); // Clear the end date
-    setTableData([]); // Clear the table data (optional, if you want to clear the results)
-    setIsEventIdDisabled();
-    setEndDate();
-    setStartDate();
+    setStartDate(null);
+    setEndDate(null);
+    setSummaryData({ geekerCount: 0, seekerCount: 0, acceptedCount: 0, pendingCount: 0 });
   };
 
   return (
@@ -165,7 +94,7 @@ function Dashboard() {
                         <DatePicker
                           label="Start Date"
                           value={startDate}
-                          onChange={handleStartDateChange}
+                          onChange={(date) => setStartDate(date)}
                           renderInput={(params) => <TextField fullWidth {...params} />}
                           disabled={isDateDisabled}
                         />
@@ -176,7 +105,7 @@ function Dashboard() {
                         <DatePicker
                           label="End Date"
                           value={endDate}
-                          onChange={handleEndDateChange}
+                          onChange={(date) => setEndDate(date)}
                           renderInput={(params) => <TextField fullWidth {...params} />}
                           disabled={isDateDisabled}
                         />
@@ -187,7 +116,7 @@ function Dashboard() {
                         variant="gradient"
                         color="info"
                         fullWidth
-                        onClick={handleSearch}
+                        onClick={fetchSummaryData}
                         style={{ marginRight: "10px" }}
                       >
                         Search
@@ -214,7 +143,7 @@ function Dashboard() {
                 <ComplexStatisticsCard
                   icon="weekend"
                   title="Geek Registrations"
-                  count={summaryData.totalBookings}
+                  count={summaryData.geekerCount}
                 />
               </MDBox>
             </Grid>
@@ -223,7 +152,7 @@ function Dashboard() {
                 <ComplexStatisticsCard
                   icon="weekend"
                   title="Seeker Registrations"
-                  count={summaryData.users}
+                  count={summaryData.seekerCount}
                 />
               </MDBox>
             </Grid>
@@ -233,7 +162,7 @@ function Dashboard() {
                   color="success"
                   icon="store"
                   title="Raised Request"
-                  count={summaryData.totalRevenue}
+                  count={summaryData.pendingCount}
                 />
               </MDBox>
             </Grid>
@@ -243,7 +172,7 @@ function Dashboard() {
                   color="success"
                   icon="store"
                   title="Hiring Reports"
-                  count={summaryData.totalRevenue}
+                  count={summaryData.acceptedCount}
                 />
               </MDBox>
             </Grid>
