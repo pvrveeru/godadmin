@@ -255,7 +255,7 @@ const Categories = () => {
                 {loading ? (
                   <p>Loading...</p>
                 ) : (
-                  <TableContainer component={Paper}>
+                  <TableContainer component={Paper} style={{ borderRadius: 0, boxShadow: "none" }}>
                     <table
                       style={{
                         width: "100%",
