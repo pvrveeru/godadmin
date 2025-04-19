@@ -65,34 +65,6 @@ function RejectRequest() {
     const token = localStorage.getItem("userToken");
     if (!token) return;
 
-    const fetchPendingConnections = async () => {
-      const token = localStorage.getItem("userToken");
-      if (!token) {
-        setError("User not authenticated. Please log in.");
-        navigate("/authentication/sign-in/");
-        return;
-      }
-
-      try {
-        const response = await api.get(
-          "/connections?connection_status=rejected&limit=10&offset=0",
-          {
-            headers: {
-              Accept: "*/*",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        console.log("Pending Connections:", response.data);
-        setTableData(response.data.connections || []);
-        setTotalReports(response.data.totalCount || 0);
-      } catch (error) {
-        console.error("Failed to fetch pending connections:", error);
-        setError("Failed to fetch pending connections.");
-      }
-    };
-
     const fetchMainCategories = async () => {
       const token = localStorage.getItem("userToken");
       if (!token) return;
@@ -126,11 +98,36 @@ function RejectRequest() {
     };
 
     fetchMainCategories();
-    fetchPendingConnections();
     setIsDateDisabled(false);
     setStartDate();
     setEndDate();
   }, []);
+
+  const fetchPendingConnections = async () => {
+    const token = localStorage.getItem("userToken");
+    if (!token) {
+      setError("User not authenticated. Please log in.");
+      navigate("/authentication/sign-in/");
+      return;
+    }
+    const offset = page * rowsPerPage; // Calculate offset for pagination
+
+    const url = `/connections?connection_status=rejected&sortBy=createdAt&sortOrder=asc&limit=${rowsPerPage}&offset=${offset}`;
+
+    try {
+      const response = await api.get(url, {
+        headers: {
+          Accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setTableData(response.data.connections || []);
+      setTotalReports(response.data.totalCount || 0);
+    } catch (error) {
+      console.error("Error fetching request:", error);
+    }
+  };
 
   const handleSelectChange = (event) => {
     setSelectedEventId(event.target.value);
@@ -210,6 +207,14 @@ function RejectRequest() {
     setIsEventIdDisabled();
     setEndDate();
     setStartDate();
+  };
+
+  useEffect(() => {
+    fetchPendingConnections();
+  }, [page, rowsPerPage]);
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
   };
 
   const handleChangeRowsPerPage = (event) => {
