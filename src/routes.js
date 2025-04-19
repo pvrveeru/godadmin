@@ -9,6 +9,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import RemoveModeratorIcon from "@mui/icons-material/RemoveModerator";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import ImageIcon from "@mui/icons-material/Image";
 import LocalActivityIcon from "@mui/icons-material/LocalActivity";
@@ -86,7 +87,7 @@ const routes = [
     type: "collapse",
     name: "Reject Reports",
     key: "rejectrequest",
-    icon: <VerifiedUserIcon sx={{ fontSize: "26px !important" }} />,
+    icon: <RemoveModeratorIcon sx={{ fontSize: "26px !important" }} />,
     route: "/rejectrequest",
     component: <RejectRequest />,
   },
