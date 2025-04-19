@@ -30,6 +30,8 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import "../styles.css"; // Import the CSS file
 import TableContainer from "@mui/material/TableContainer";
 import Paper from "@mui/material/Paper";
+import Papa from "papaparse";
+
 import { EventRepeat } from "@mui/icons-material";
 // Extend dayjs with required plugins
 dayjs.extend(customParseFormat);
@@ -55,10 +57,39 @@ function RaisedRequest() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [allMainCategories, setAllMainCategories] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [formData, setFormData] = useState({
     mainCategoryId: "",
   });
   useEffect(() => {
+    const token = localStorage.getItem("userToken");
+    if (!token) return;
+
+    const fetchPendingConnections = async () => {
+      const token = localStorage.getItem("userToken");
+      if (!token) {
+        setError("User not authenticated. Please log in.");
+        navigate("/authentication/sign-in/");
+        return;
+      }
+
+      try {
+        const response = await api.get("/connections?connection_status=pending&limit=10&offset=0", {
+          headers: {
+            Accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log("Pending Connections:", response.data);
+        setTableData(response.data.connections || []);
+        setTotalReports(response.data.totalCount || 0);
+      } catch (error) {
+        console.error("Failed to fetch pending connections:", error);
+        setError("Failed to fetch pending connections.");
+      }
+    };
+
     const fetchMainCategories = async () => {
       const token = localStorage.getItem("userToken");
       if (!token) return;
@@ -92,6 +123,7 @@ function RaisedRequest() {
     };
 
     fetchMainCategories();
+    fetchPendingConnections();
     setIsDateDisabled(false);
     setStartDate();
     setEndDate();
@@ -141,12 +173,12 @@ function RaisedRequest() {
 
     if (selectedEventId) {
       // Search by event ID
-      url = `/payment-details/financeReports?eventId=${selectedEventId}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
+      url = `/connections?connection_status=pending&categoryId=${selectedCategoryId}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
     } else if (startDate && endDate) {
       // Search by date range
       const formattedStartDate = startDate.format("YYYY-MM-DD");
       const formattedEndDate = endDate.format("YYYY-MM-DD");
-      url = `/payment-details/financeReports?startDate=${formattedStartDate}&endDate=${formattedEndDate}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
+      url = `/connections?connection_status=pending&categoryId=${selectedCategoryId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&limit=10&offset=0`;
     } else {
       console.error("Please select either an event or a date range.");
       return;
@@ -160,9 +192,8 @@ function RaisedRequest() {
         },
       });
 
-      const { events, totalNoOfRecords } = response.data.data;
-      setTableData(events); // Update table data
-      setTotalReports(totalNoOfRecords); // Update total bookings count
+      setTableData(response.data.connections); // Update table data
+      setTotalReports(response.data.totalCount); // Update total bookings count
     } catch (error) {
       console.error("Error fetching reports:", error);
     }
@@ -181,6 +212,26 @@ function RaisedRequest() {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0); // Reset to the first page
+  };
+
+  const handleDownloadCSV = () => {
+    if (!tableData || tableData.length === 0) return;
+
+    const csvData = tableData.map((conn) => ({
+      Name:
+        conn.geeker?.Profile?.display_name ||
+        `${conn.geeker?.first_name || ""} ${conn.geeker?.last_name || ""}`,
+      Email: conn.geeker?.email || "N/A",
+      Category: conn.geeker?.Profile?.category?.name || "N/A",
+      Subcategory: conn.geeker?.Profile?.subcategory?.name || "N/A",
+      Comment: conn.comment || "",
+      Date: conn.createdAt ? dayjs(conn.createdAt).format("DD MMM YYYY, hh:mm A") : "N/A",
+    }));
+
+    const csv = Papa.unparse(csvData);
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "Raised_Request_Reports.csv");
   };
 
   return (
@@ -213,21 +264,17 @@ function RaisedRequest() {
                       <b style={{ lineHeight: "60px", marginLeft: "10px" }}>Search by</b>
                       <Grid item xs={12} sm={3}>
                         <Select
-                          labelId="mainCategoryLabel"
-                          id="mainCategory"
-                          name="mainCategoryId"
-                          value={formData?.mainCategoryId || ""}
+                          value={selectedCategoryId}
+                          onChange={(e) => setSelectedCategoryId(e.target.value)}
+                          label="Select Category"
                           fullWidth
                           style={{
                             lineHeight: "44px",
                           }}
                         >
-                          <MenuItem value="">
-                            <em>Select an category</em>
-                          </MenuItem>
-                          {allMainCategories.map((mainCategory) => (
-                            <MenuItem key={mainCategory.categoryId} value={mainCategory.categoryId}>
-                              {mainCategory.categoryName}
+                          {allMainCategories.map((cat) => (
+                            <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                              {cat.categoryName}
                             </MenuItem>
                           ))}
                         </Select>
@@ -278,6 +325,16 @@ function RaisedRequest() {
                 </Card>
                 <MDBox mt={3}>
                   <>
+                    <Grid item xs={12} sm={2} style={{ width: 150 }}>
+                      <MDButton
+                        variant="outlined"
+                        color="success"
+                        fullWidth
+                        onClick={handleDownloadCSV}
+                      >
+                        Export CSV
+                      </MDButton>
+                    </Grid>
                     <MDBox mt={2} display="flex" justifyContent="center">
                       <TableContainer
                         component={Paper}
@@ -288,65 +345,63 @@ function RaisedRequest() {
                             <table
                               style={{
                                 width: "100%",
+                                marginTop: "10px",
                                 borderCollapse: "collapse",
                                 fontSize: "16px",
                               }}
                             >
-                              <thead style={{ background: "#efefef", fontSize: "14px" }}>
+                              <thead style={{ backgroundColor: "#f0f0f0" }}>
                                 <tr>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event ID
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>Name</th>
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>
+                                    Email
                                   </th>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event Name
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>
+                                    Category
                                   </th>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event Date
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>
+                                    Subcategory
                                   </th>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event Tickets
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>
+                                    Comment
                                   </th>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event Enrolments
-                                  </th>
-                                  <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                    Event Payments
-                                  </th>
+                                  <th style={{ padding: "8px", border: "1px solid #ddd" }}>Date</th>
                                 </tr>
                               </thead>
-                              <tbody style={{ fontSize: "15px" }}>
-                                {tableData.map((event) => (
-                                  <tr key={event.eventId}>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {event.eventId}
-                                    </td>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {event.title}
-                                    </td>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {new Date(event.eventDate).toLocaleDateString()}
-                                    </td>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {event.totalCapacity}
-                                    </td>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {Array.isArray(event.seatingDetails) ? (
-                                        <ul style={{ listStyle: "none" }}>
-                                          {event.seatingDetails.map((detail, index) => (
-                                            <li key={index}>
-                                              {detail.zoneName} - {detail.ticketsBooked}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      ) : (
-                                        "N/A"
-                                      )}
-                                    </td>
-                                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      {event.eventPayments}
-                                    </td>
+                              <tbody>
+                                {tableData.length > 0 ? (
+                                  tableData.map((conn) => (
+                                    <tr key={conn.id}>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.geeker?.Profile?.display_name ||
+                                          `${conn.geeker?.first_name || ""} ${
+                                            conn.geeker?.last_name || ""
+                                          }`}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.geeker?.email || "N/A"}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.geeker?.Profile?.category?.name || "N/A"}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.geeker?.Profile?.subcategory?.name || "N/A"}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.comment}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {conn.createdAt
+                                          ? dayjs(conn.createdAt).format("DD MMM YYYY, hh:mm A")
+                                          : "N/A"}
+                                      </td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan="7">No accepted connections found.</td>
                                   </tr>
-                                ))}
+                                )}
                               </tbody>
                             </table>
                             <TablePagination

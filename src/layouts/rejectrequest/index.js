@@ -30,38 +30,37 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import "../styles.css"; // Import the CSS file
 import TableContainer from "@mui/material/TableContainer";
 import Paper from "@mui/material/Paper";
-import { EventRepeat, Margin } from "@mui/icons-material";
 import Papa from "papaparse";
+
+import { EventRepeat } from "@mui/icons-material";
 // Extend dayjs with required plugins
 dayjs.extend(customParseFormat);
 dayjs.extend(localizedFormat);
 dayjs.extend(isBetween);
 dayjs.extend(advancedFormat);
 
-function HiringRequest() {
+function RejectRequest() {
   const [startDate, setStartDate] = useState(dayjs());
-  const [endDate, setEndDate] = useState(dayjs());
-  const [connections, setConnections] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [endDate, setEndDate] = useState(dayjs()); // Current date
+  const [totalRepots, setTotalReports] = useState(0); // Added to track total bookings
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [filteredEvent, setFilteredEvent] = useState(null);
   const navigate = useNavigate();
+
   const [isEventIdDisabled, setIsEventIdDisabled] = useState(false);
   const [isDateDisabled, setIsDateDisabled] = useState(false);
   const [tableData, setTableData] = useState([]);
-  const [totalRepots, setTotalReports] = useState(0); // Added to track total bookings
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [allMainCategories, setAllMainCategories] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [formData, setFormData] = useState({
     mainCategoryId: "",
   });
-
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     if (!token) return;
@@ -76,7 +75,7 @@ function HiringRequest() {
 
       try {
         const response = await api.get(
-          "/connections?connection_status=accepted&limit=10&offset=0",
+          "/connections?connection_status=rejected&limit=10&offset=0",
           {
             headers: {
               Accept: "*/*",
@@ -95,15 +94,20 @@ function HiringRequest() {
     };
 
     const fetchMainCategories = async () => {
+      const token = localStorage.getItem("userToken");
+      if (!token) return;
+
       try {
+        setLoading(true);
         const response = await api.get(`/categories`, {
           headers: {
             Accept: "*/*",
             Authorization: `Bearer ${token}`,
           },
         });
-        console.log("Categories Fetched:", response.data);
+
         const data = response.data.categories || [];
+
         const formatted = Array.isArray(data)
           ? data.map((cat) => ({
               categoryId: cat.id,
@@ -112,16 +116,20 @@ function HiringRequest() {
               createdAt: cat.createdAt,
             }))
           : [];
+
         setAllMainCategories(formatted);
       } catch (err) {
-        console.error("Failed to fetch categories", err);
+        setError("Failed to load main categories.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPendingConnections();
     fetchMainCategories();
+    fetchPendingConnections();
+    setIsDateDisabled(false);
+    setStartDate();
+    setEndDate();
   }, []);
 
   const handleSelectChange = (event) => {
@@ -154,7 +162,6 @@ function HiringRequest() {
       setIsEventIdDisabled(false);
     }
   };
-  const handleRowsPerPageChange = (e) => setRowsPerPage(e.target.value);
 
   // Handle search button click
   const handleSearch = async () => {
@@ -165,30 +172,33 @@ function HiringRequest() {
       return;
     }
 
-    if (!selectedCategoryId || !startDate || !endDate) {
-      console.error("Please select category and date range.");
+    let url = "";
+
+    if (selectedEventId) {
+      // Search by event ID
+      url = `/connections?connection_status=rejected&categoryId=${selectedCategoryId}&sortBy=createdAt&sortOrder=asc&limit=10&offset=0`;
+    } else if (startDate && endDate) {
+      // Search by date range
+      const formattedStartDate = startDate.format("YYYY-MM-DD");
+      const formattedEndDate = endDate.format("YYYY-MM-DD");
+      url = `/connections?connection_status=rejected&categoryId=${selectedCategoryId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&limit=10&offset=0`;
+    } else {
+      console.error("Please select either an event or a date range.");
       return;
     }
-
-    const formattedStartDate = startDate.format("YYYY-MM-DD");
-    const formattedEndDate = endDate.format("YYYY-MM-DD");
-
-    const url = `/connections?connection_status=accepted&categoryId=${selectedCategoryId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&limit=10&offset=0`;
 
     try {
       const response = await api.get(url, {
         headers: {
           Accept: "*/*",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`, // Token applied to all requests
         },
       });
 
-      setTableData(response.data.connections); // Update your table rows
-
-      setTotalReports(response.data.totalCount); // Total pagination count if needed
+      setTableData(response.data.connections); // Update table data
+      setTotalReports(response.data.totalCount); // Update total bookings count
     } catch (error) {
-      console.error("Error fetching connections:", error);
-      setError("Failed to fetch connections.");
+      console.error("Error fetching reports:", error);
     }
   };
 
@@ -196,12 +206,10 @@ function HiringRequest() {
     setSelectedEventId(""); // Reset the selected event
     setStartDate(null); // Clear the start date
     setEndDate(null); // Clear the end date
-    setSelectedCategoryId(null);
     setTableData([]); // Clear the table data (optional, if you want to clear the results)
     setIsEventIdDisabled();
     setEndDate();
     setStartDate();
-    //fetchPendingConnections();
   };
 
   const handleChangeRowsPerPage = (event) => {
@@ -226,7 +234,7 @@ function HiringRequest() {
     const csv = Papa.unparse(csvData);
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, "Hiring_Request_Reports.csv");
+    saveAs(blob, "Rejected_Request_Reports.csv");
   };
 
   return (
@@ -249,7 +257,7 @@ function HiringRequest() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  <h2>Hiring Request Reports</h2>
+                  <h2>Reject Request Reports</h2>
                 </MDTypography>
               </MDBox>
               <MDBox pt={3} px={2}>
@@ -257,7 +265,7 @@ function HiringRequest() {
                   <MDBox p={3}>
                     <Grid container spacing={2}>
                       <b style={{ lineHeight: "60px", marginLeft: "10px" }}>Search by</b>
-                      <Grid item xs={12} sm={2}>
+                      <Grid item xs={12} sm={3}>
                         <Select
                           value={selectedCategoryId}
                           onChange={(e) => setSelectedCategoryId(e.target.value)}
@@ -330,6 +338,7 @@ function HiringRequest() {
                         Export CSV
                       </MDButton>
                     </Grid>
+
                     <MDBox mt={2} display="flex" justifyContent="center">
                       <TableContainer
                         component={Paper}
@@ -399,7 +408,6 @@ function HiringRequest() {
                                 )}
                               </tbody>
                             </table>
-
                             <TablePagination
                               rowsPerPageOptions={[10, 25, 50, 100]}
                               component="div"
@@ -450,4 +458,4 @@ function HiringRequest() {
   );
 }
 
-export default HiringRequest;
+export default RejectRequest;

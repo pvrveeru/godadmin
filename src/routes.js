@@ -4,6 +4,7 @@ import SignIn from "layouts/authentication/sign-in";
 import Registration from "layouts/registration";
 import HiringRequest from "layouts/hiringrequest";
 import RaisedRequest from "layouts/raisedrequest";
+import RejectRequest from "layouts/rejectrequest";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
@@ -80,6 +81,14 @@ const routes = [
     icon: <VerifiedUserIcon sx={{ fontSize: "26px !important" }} />,
     route: "/hiringrequest",
     component: <HiringRequest />,
+  },
+  {
+    type: "collapse",
+    name: "Reject Reports",
+    key: "rejectrequest",
+    icon: <VerifiedUserIcon sx={{ fontSize: "26px !important" }} />,
+    route: "/rejectrequest",
+    component: <RejectRequest />,
   },
   {
     type: "collapse",

@@ -181,6 +181,15 @@ function GeekRegistration() {
                                 <thead style={{ background: "#efefef", fontSize: "14px" }}>
                                   <tr>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      Registration type
+                                    </th>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      Display Name
+                                    </th>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      Compay Name
+                                    </th>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Name
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
@@ -200,6 +209,15 @@ function GeekRegistration() {
                                 <tbody style={{ fontSize: "15px" }}>
                                   {filteredRows.map((row) => (
                                     <tr key={row.id}>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {row.registration_type || "N/A"}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {row.display_name || "N/A"}
+                                      </td>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {row.company_name || "N/A"}
+                                      </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.user?.first_name || "N/A"}{" "}
                                         {row.user?.last_name || "N/A"}
