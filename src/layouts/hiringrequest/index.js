@@ -222,8 +222,8 @@ function HiringRequest() {
         conn.geeker?.Profile?.display_name ||
         `${conn.geeker?.first_name || ""} ${conn.geeker?.last_name || ""}`,
       Email: conn.geeker?.email || "N/A",
-      Category: conn.geeker?.Profile?.category?.name || "N/A",
-      Subcategory: conn.geeker?.Profile?.subcategory?.name || "N/A",
+      Category: conn.category?.name || "N/A",
+      Subcategory: conn.subcategory?.name || "N/A",
       Comment: conn.comment || "",
       Date: conn.createdAt ? dayjs(conn.createdAt).format("DD MMM YYYY, hh:mm A") : "N/A",
     }));
@@ -382,10 +382,10 @@ function HiringRequest() {
                                         {conn.geeker?.email || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {conn.geeker?.Profile?.category?.name || "N/A"}
+                                        {conn.category?.name || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {conn.geeker?.Profile?.subcategory?.name || "N/A"}
+                                        {conn.subcategory?.name || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {conn.comment}
