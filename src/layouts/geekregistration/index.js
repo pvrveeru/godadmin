@@ -31,7 +31,6 @@ function GeekRegistration() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
-  const [totalUsers, setTotalUsers] = useState(0); // Added to track total bookings
 
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
@@ -42,7 +41,6 @@ function GeekRegistration() {
     }
 
     const url = `/profiles/search`;
-
     setLoading(true);
     try {
       const response = await api.get(url, {
@@ -51,15 +49,14 @@ function GeekRegistration() {
           Authorization: `Bearer ${token}`,
         },
         params: {
-          startDate: startDate.format("YYYY-MM-DD"),
-          endDate: endDate.format("YYYY-MM-DD"),
-          user_type: "geeker", // ✅ Only fetch seekers
+          created_from: startDate.format("YYYY-MM-DD"),
+          created_to: endDate.format("YYYY-MM-DD"),
+          user_type: "geeker",
         },
       });
 
       const seekerUsers = response.data.data || [];
       setRows(seekerUsers);
-      setTotalUsers(seekerUsers.length);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -73,29 +70,29 @@ function GeekRegistration() {
 
   const handleStartDateChange = (newDate) => setStartDate(newDate);
   const handleEndDateChange = (newDate) => setEndDate(newDate);
-  const handleSearchChange = (e) => setSearchQuery(e.target.value.toLowerCase());
-  const handlePageChange = (event, newPage) => setPage(newPage - 1);
-  const handleRowsPerPageChange = (e) => setRowsPerPage(e.target.value);
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value.toLowerCase());
+    setPage(0);
+  };
 
-  // Filtered data for search and pagination
-  const filteredRows = rows
-    .filter((row) => {
-      const email = row.email || "";
-      const address = row.address || "";
-      const displayName = row.display_name || "";
-
-      return (
-        email.toLowerCase().includes(searchQuery) ||
-        address.toLowerCase().includes(searchQuery) ||
-        displayName.toLowerCase().includes(searchQuery)
-      );
-    })
-    .slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-
+  const handlePageChange = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to the first page
+    setPage(0);
   };
+
+  const filteredRows = rows.filter((row) => {
+    const email = row.email || "";
+    const address = row.address || "";
+    const displayName = row.display_name || "";
+    return (
+      email.toLowerCase().includes(searchQuery) ||
+      address.toLowerCase().includes(searchQuery) ||
+      displayName.toLowerCase().includes(searchQuery)
+    );
+  });
+
+  const paginatedRows = filteredRows.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
     <DashboardLayout>
@@ -169,7 +166,7 @@ function GeekRegistration() {
                           component={Paper}
                           style={{ borderRadius: "0px", boxShadow: "none" }}
                         >
-                          {filteredRows?.length > 0 ? (
+                          {paginatedRows.length > 0 ? (
                             <>
                               <table
                                 style={{
@@ -187,7 +184,7 @@ function GeekRegistration() {
                                       Display Name
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Compay Name
+                                      Company Name
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Name
@@ -207,7 +204,7 @@ function GeekRegistration() {
                                   </tr>
                                 </thead>
                                 <tbody style={{ fontSize: "15px" }}>
-                                  {filteredRows.map((row) => (
+                                  {paginatedRows.map((row) => (
                                     <tr key={row.id}>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.registration_type || "N/A"}
@@ -231,7 +228,6 @@ function GeekRegistration() {
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.city || "N/A"}
                                       </td>
-
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.createdAt
                                           ? dayjs(row.createdAt).format("DD-MM-YYYY")
@@ -241,13 +237,14 @@ function GeekRegistration() {
                                   ))}
                                 </tbody>
                               </table>
+
                               <TablePagination
                                 rowsPerPageOptions={[10, 25, 50, 100]}
                                 component="div"
-                                count={totalUsers}
+                                count={filteredRows.length}
                                 rowsPerPage={rowsPerPage}
                                 page={page}
-                                onPageChange={(row, newPage) => setPage(newPage)}
+                                onPageChange={handlePageChange}
                                 onRowsPerPageChange={handleChangeRowsPerPage}
                               />
                               <FormControl

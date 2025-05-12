@@ -1,25 +1,29 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogActions, DialogContent, DialogTitle, TablePagination } from "@mui/material";
-import axios from "axios";
-import Grid from "@mui/material/Grid";
-import Card from "@mui/material/Card";
-import Button from "@mui/material/Button";
-import Pagination from "@mui/material/Pagination";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
-import MDBox from "components/MDBox";
-import MDTypography from "components/MDTypography";
-import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
-import CircularProgress from "@mui/material/CircularProgress";
-import { TextField } from "@mui/material";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TablePagination,
+  CircularProgress,
+  Grid,
+  Card,
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  TableContainer,
+  Paper,
+} from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import TableContainer from "@mui/material/TableContainer";
-import Paper from "@mui/material/Paper";
+import MDBox from "components/MDBox";
+import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import api from "../api";
 
@@ -31,35 +35,30 @@ function Registration() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
-  const [totalUsers, setTotalUsers] = useState(0); // Added to track total bookings
 
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
-      setError("User not authenticated. Please log in.");
-      navigate("/authentication/sign-in/");
+      console.error("User not authenticated");
       return;
     }
 
-    const url = `/profiles/search`;
-
     setLoading(true);
     try {
-      const response = await api.get(url, {
+      const response = await api.get("/profiles/search", {
         headers: {
           Accept: "*/*",
           Authorization: `Bearer ${token}`,
         },
         params: {
-          startDate: startDate.format("YYYY-MM-DD"),
-          endDate: endDate.format("YYYY-MM-DD"),
-          user_type: "seeker", // ✅ Only fetch seekers
+          created_from: startDate.format("YYYY-MM-DD"),
+          created_to: endDate.format("YYYY-MM-DD"),
+          user_type: "seeker",
         },
       });
 
       const seekerUsers = response.data.data || [];
       setRows(seekerUsers);
-      setTotalUsers(seekerUsers.length);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -74,28 +73,27 @@ function Registration() {
   const handleStartDateChange = (newDate) => setStartDate(newDate);
   const handleEndDateChange = (newDate) => setEndDate(newDate);
   const handleSearchChange = (e) => setSearchQuery(e.target.value.toLowerCase());
-  const handlePageChange = (event, newPage) => setPage(newPage - 1);
-  const handleRowsPerPageChange = (e) => setRowsPerPage(e.target.value);
-
-  // Filtered data for search and pagination
-  const filteredRows = rows
-    .filter((row) => {
-      const email = row.email || "";
-      const address = row.address || "";
-      const displayName = row.display_name || "";
-
-      return (
-        email.toLowerCase().includes(searchQuery) ||
-        address.toLowerCase().includes(searchQuery) ||
-        displayName.toLowerCase().includes(searchQuery)
-      );
-    })
-    .slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-
+  const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to the first page
+    setPage(0);
   };
+
+  // Step 1: Filter rows
+  const filteredRows = rows.filter((row) => {
+    const email = row.email || "";
+    const address = row.address || "";
+    const displayName = row.display_name || "";
+
+    return (
+      email.toLowerCase().includes(searchQuery) ||
+      address.toLowerCase().includes(searchQuery) ||
+      displayName.toLowerCase().includes(searchQuery)
+    );
+  });
+
+  // Step 2: Paginate filtered rows
+  const paginatedRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <DashboardLayout>
@@ -167,9 +165,9 @@ function Registration() {
                       <MDBox mt={2} display="flex" justifyContent="center">
                         <TableContainer
                           component={Paper}
-                          style={{ borderRadius: "0px", boxShadow: "none" }}
+                          style={{ borderRadius: 0, boxShadow: "none" }}
                         >
-                          {filteredRows?.length > 0 ? (
+                          {paginatedRows.length > 0 ? (
                             <>
                               <table
                                 style={{
@@ -197,9 +195,8 @@ function Registration() {
                                     </th>
                                   </tr>
                                 </thead>
-
                                 <tbody style={{ fontSize: "15px" }}>
-                                  {filteredRows.map((row) => (
+                                  {paginatedRows.map((row) => (
                                     <tr key={row.id}>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.user?.first_name || "N/A"}{" "}
@@ -214,7 +211,6 @@ function Registration() {
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.city || "N/A"}
                                       </td>
-
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.createdAt
                                           ? dayjs(row.createdAt).format("DD-MM-YYYY")
@@ -224,13 +220,14 @@ function Registration() {
                                   ))}
                                 </tbody>
                               </table>
+
                               <TablePagination
                                 rowsPerPageOptions={[10, 25, 50, 100]}
                                 component="div"
-                                count={totalUsers}
+                                count={filteredRows.length}
                                 rowsPerPage={rowsPerPage}
                                 page={page}
-                                onPageChange={(row, newPage) => setPage(newPage)}
+                                onPageChange={handleChangePage}
                                 onRowsPerPageChange={handleChangeRowsPerPage}
                               />
                               <FormControl
