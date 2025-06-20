@@ -10,6 +10,7 @@ import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import RemoveModeratorIcon from "@mui/icons-material/RemoveModerator";
+import ThreePIcon from "@mui/icons-material/ThreeP";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import ImageIcon from "@mui/icons-material/Image";
 import LocalActivityIcon from "@mui/icons-material/LocalActivity";
@@ -22,6 +23,9 @@ import Categories from "layouts/categories";
 import Subcategories from "layouts/subcategories";
 import Departments from "layouts/departments";
 import GeekRegistration from "layouts/geekregistration";
+import HomeBanners from "layouts/homebanners/homeBanners";
+import InnerBanners from "layouts/innerbanners/innerbanners";
+import LoginAnalytics from "layouts/loginanalytics";
 
 // @mui icons
 import Icon from "@mui/material/Icon";
@@ -90,6 +94,30 @@ const routes = [
     icon: <RemoveModeratorIcon sx={{ fontSize: "26px !important" }} />,
     route: "/rejectrequest",
     component: <RejectRequest />,
+  },
+  {
+    type: "collapse",
+    name: "Login Analytics",
+    key: "loginanalytics",
+    icon: <ThreePIcon sx={{ fontSize: "26px !important" }} />,
+    route: "/loginanalytics",
+    component: <LoginAnalytics />,
+  },
+  {
+    type: "collapse",
+    name: "Home Banners",
+    key: "homebanners",
+    icon: <ImageIcon sx={{ fontSize: "30px !important" }} />,
+    route: "/homebanners",
+    component: <HomeBanners />,
+  },
+  {
+    type: "collapse",
+    name: "Inner Banners",
+    key: "innerbanners",
+    icon: <ImageIcon sx={{ fontSize: "30px !important" }} />,
+    route: "/innerbanners",
+    component: <InnerBanners />,
   },
   {
     type: "collapse",

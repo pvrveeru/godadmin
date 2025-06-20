@@ -26,6 +26,7 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import api from "../api";
+import { saveAs } from "file-saver";
 
 function Registration() {
   const [startDate, setStartDate] = useState(dayjs());
@@ -91,6 +92,33 @@ function Registration() {
       displayName.toLowerCase().includes(searchQuery)
     );
   });
+
+  const exportToCSV = () => {
+    const headers = ["Name", "Phone", "Email", "City", "Registration Date"];
+
+    const csvRows = [
+      headers.join(","), // Header row
+      ...filteredRows.map((row) => {
+        const user = row.user || {};
+        const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+        const registrationDate = row.createdAt ? dayjs(row.createdAt).format("DD-MM-YYYY") : "N/A";
+
+        return [
+          fullName || "N/A",
+          user.phone || "N/A",
+          user.email || "N/A",
+          row.city || "N/A",
+          registrationDate,
+        ]
+          .map((value) => `"${value}"`) // Quote all fields for safety
+          .join(",");
+      }),
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "SeekerRegistrations.csv");
+  };
 
   // Step 2: Paginate filtered rows
   const paginatedRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -162,6 +190,16 @@ function Registration() {
                     <CircularProgress />
                   ) : (
                     <>
+                      <Grid item xs={12} sm={2} style={{ width: 150 }}>
+                        <MDButton
+                          variant="outlined"
+                          color="success"
+                          fullWidth
+                          onClick={exportToCSV}
+                        >
+                          Export CSV
+                        </MDButton>
+                      </Grid>
                       <MDBox mt={2} display="flex" justifyContent="center">
                         <TableContainer
                           component={Paper}

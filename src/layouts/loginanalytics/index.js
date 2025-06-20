@@ -1,30 +1,36 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogActions, DialogContent, DialogTitle, TablePagination } from "@mui/material";
-import axios from "axios";
-import Grid from "@mui/material/Grid";
-import Card from "@mui/material/Card";
-import Button from "@mui/material/Button";
-import Pagination from "@mui/material/Pagination";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
-import MDBox from "components/MDBox";
-import MDTypography from "components/MDTypography";
-import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
-import CircularProgress from "@mui/material/CircularProgress";
-import { TextField } from "@mui/material";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TablePagination,
+  CircularProgress,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  TextField,
+  Grid,
+  Card,
+  Button,
+  TableContainer,
+  Paper,
+} from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
-import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import TableContainer from "@mui/material/TableContainer";
-import Paper from "@mui/material/Paper";
-import MDButton from "components/MDButton";
-import api from "../api";
 import { saveAs } from "file-saver";
 
-function GeekRegistration() {
+import MDBox from "components/MDBox";
+import MDTypography from "components/MDTypography";
+import MDButton from "components/MDButton";
+import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
+import DashboardNavbar from "examples/Navbars/DashboardNavbar";
+
+import api from "../api";
+
+function LoginAnalytics() {
   const [startDate, setStartDate] = useState(dayjs());
   const [endDate, setEndDate] = useState(dayjs());
   const [rows, setRows] = useState([]);
@@ -36,12 +42,12 @@ function GeekRegistration() {
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
-      setError("User not authenticated. Please log in.");
-      navigate("/authentication/sign-in/");
+      alert("User not authenticated. Please log in.");
+      window.location.href = "/authentication/sign-in/";
       return;
     }
 
-    const url = `/profiles/search`;
+    const url = `/users/login-analytics`;
     setLoading(true);
     try {
       const response = await api.get(url, {
@@ -50,14 +56,13 @@ function GeekRegistration() {
           Authorization: `Bearer ${token}`,
         },
         params: {
-          created_from: startDate.format("YYYY-MM-DD"),
-          created_to: endDate.format("YYYY-MM-DD"),
-          user_type: "geeker",
+          startDate: startDate.format("YYYY-MM-DD"),
+          endDate: endDate.format("YYYY-MM-DD"),
         },
       });
 
-      const seekerUsers = response.data.data || [];
-      setRows(seekerUsers);
+      const users = response.data?.data?.users || [];
+      setRows(users);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -84,52 +89,37 @@ function GeekRegistration() {
 
   const filteredRows = rows.filter((row) => {
     const email = row.email || "";
-    const address = row.address || "";
-    const displayName = row.display_name || "";
+    const fullName = `${row.firstName || ""} ${row.lastName || ""}`;
     return (
-      email.toLowerCase().includes(searchQuery) ||
-      address.toLowerCase().includes(searchQuery) ||
-      displayName.toLowerCase().includes(searchQuery)
+      email.toLowerCase().includes(searchQuery) || fullName.toLowerCase().includes(searchQuery)
     );
   });
 
   const exportToCSV = () => {
-    const headers = [
-      "Registration type",
-      "Display Name",
-      "Company Name",
-      "Name",
-      "Phone",
-      "Email",
-      "City",
-      "Registration Date",
-    ];
+    const headers = ["User type", "Name", "Phone", "Email", "Login Date"];
 
     const csvRows = [
-      headers.join(","), // Header row
+      headers.join(","),
       ...filteredRows.map((row) => {
-        const user = row.user || {};
-        const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
-        const registrationDate = row.createdAt ? dayjs(row.createdAt).format("DD-MM-YYYY") : "N/A";
+        const fullName = `${row.firstName || ""} ${row.lastName || ""}`.trim();
+        const registrationDate = row.lastLogin ? dayjs(row.lastLogin).format("DD-MM-YYYY") : "N/A";
+        const registrationType = row.is_seeker ? "Seeker" : row.is_geeker ? "Geeker" : "N/A";
 
         return [
-          row.registration_type || "N/A",
-          row.display_name || "N/A",
-          row.company_name || "N/A",
-          fullName || "N/A",
-          user.phone || "N/A",
-          user.email || "N/A",
-          row.city || "N/A",
+          registrationType,
+          fullName,
+          row.phone || "N/A",
+          row.email || "N/A",
           registrationDate,
         ]
-          .map((value) => `"${value}"`) // Quote all fields for safety
+          .map((value) => `"${value}"`)
           .join(",");
       }),
     ];
 
     const csvContent = csvRows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, "GeekRegistrations.csv");
+    saveAs(blob, "LoginAnalytics.csv");
   };
 
   const paginatedRows = filteredRows.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
@@ -154,7 +144,7 @@ function GeekRegistration() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  <h2>Geek Registrations</h2>
+                  <h2>Login Analytics</h2>
                 </MDTypography>
               </MDBox>
               <MDBox pt={3} px={2}>
@@ -196,22 +186,40 @@ function GeekRegistration() {
                     </Grid>
                   </MDBox>
                 </Card>
+
                 <MDBox mt={3}>
                   {loading ? (
                     <CircularProgress />
                   ) : (
                     <>
-                      <Grid item xs={12} sm={2} style={{ width: 150 }}>
-                        <MDButton
-                          variant="outlined"
-                          color="success"
-                          fullWidth
-                          onClick={exportToCSV}
+                      <Grid container spacing={2}>
+                        <Grid
+                          item
+                          xs={12}
+                          sm={2}
+                          sx={{
+                            maxWidth: "150px !important",
+                          }}
                         >
-                          Export CSV
-                        </MDButton>
+                          <MDButton
+                            variant="outlined"
+                            color="success"
+                            fullWidth
+                            onClick={exportToCSV}
+                          >
+                            Export CSV
+                          </MDButton>
+                        </Grid>
+                        <Grid item xs={12} sm={3}>
+                          <TextField
+                            label="Search by Name or Email"
+                            variant="outlined"
+                            fullWidth
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                          />
+                        </Grid>
                       </Grid>
-
                       <MDBox mt={2} display="flex" justifyContent="center">
                         <TableContainer
                           component={Paper}
@@ -229,13 +237,7 @@ function GeekRegistration() {
                                 <thead style={{ background: "#efefef", fontSize: "14px" }}>
                                   <tr>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Registration type
-                                    </th>
-                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Display Name
-                                    </th>
-                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Company Name
+                                      User type
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Name
@@ -247,10 +249,7 @@ function GeekRegistration() {
                                       Email
                                     </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      City
-                                    </th>
-                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                      Registration Date
+                                      Last Login Date
                                     </th>
                                   </tr>
                                 </thead>
@@ -258,30 +257,24 @@ function GeekRegistration() {
                                   {paginatedRows.map((row) => (
                                     <tr key={row.id}>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.registration_type || "N/A"}
+                                        {row.is_seeker
+                                          ? "Seeker"
+                                          : row.is_geeker
+                                          ? "Geeker"
+                                          : "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.display_name || "N/A"}
+                                        {`${row.firstName || ""} ${row.lastName || ""}`.trim()}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.company_name || "N/A"}
+                                        {row.phone || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.user?.first_name || "N/A"}{" "}
-                                        {row.user?.last_name || "N/A"}
+                                        {row.email || "N/A"}
                                       </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.user?.phone || "N/A"}
-                                      </td>
-                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.user?.email || "N/A"}
-                                      </td>
-                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.city || "N/A"}
-                                      </td>
-                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                                        {row.createdAt
-                                          ? dayjs(row.createdAt).format("DD-MM-YYYY")
+                                        {row.lastLogin
+                                          ? dayjs(row.lastLogin).format("DD-MM-YYYY - HH:mm")
                                           : "N/A"}
                                       </td>
                                     </tr>
@@ -298,6 +291,7 @@ function GeekRegistration() {
                                 onPageChange={handlePageChange}
                                 onRowsPerPageChange={handleChangeRowsPerPage}
                               />
+
                               <FormControl
                                 variant="outlined"
                                 sx={{
@@ -323,7 +317,7 @@ function GeekRegistration() {
                             </>
                           ) : (
                             <p style={{ textAlign: "center", margin: "20px 0" }}>
-                              No Registration data available
+                              No Login Analytics data available
                             </p>
                           )}
                         </TableContainer>
@@ -340,4 +334,4 @@ function GeekRegistration() {
   );
 }
 
-export default GeekRegistration;
+export default LoginAnalytics;
