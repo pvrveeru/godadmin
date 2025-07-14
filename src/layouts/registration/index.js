@@ -36,17 +36,20 @@ function Registration() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
     if (!token) {
-      console.error("User not authenticated");
+      setError("User not authenticated. Please log in.");
+      navigate("/authentication/sign-in/");
       return;
     }
 
+    const url = `/profiles/search`;
     setLoading(true);
     try {
-      const response = await api.get("/profiles/search", {
+      const response = await api.get(url, {
         headers: {
           Accept: "*/*",
           Authorization: `Bearer ${token}`,
@@ -55,6 +58,7 @@ function Registration() {
           created_from: startDate.format("YYYY-MM-DD"),
           created_to: endDate.format("YYYY-MM-DD"),
           user_type: "seeker",
+          ...(referralCode && { referral_code: referralCode }),
         },
       });
 
@@ -65,7 +69,7 @@ function Registration() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, referralCode]);
 
   useEffect(() => {
     fetchUsers();
@@ -85,16 +89,17 @@ function Registration() {
     const email = row.email || "";
     const address = row.address || "";
     const displayName = row.display_name || "";
-
+    const referralCode = row.referral_code || "";
     return (
       email.toLowerCase().includes(searchQuery) ||
       address.toLowerCase().includes(searchQuery) ||
-      displayName.toLowerCase().includes(searchQuery)
+      displayName.toLowerCase().includes(searchQuery) ||
+      referralCode.toLowerCase().includes(searchQuery)
     );
   });
 
   const exportToCSV = () => {
-    const headers = ["Name", "Phone", "Email", "City", "Registration Date"];
+    const headers = ["Referral Code", "Name", "Phone", "Email", "City", "Registration Date"];
 
     const csvRows = [
       headers.join(","), // Header row
@@ -104,6 +109,7 @@ function Registration() {
         const registrationDate = row.createdAt ? dayjs(row.createdAt).format("DD-MM-YYYY") : "N/A";
 
         return [
+          row.referral_code || "N/A",
           fullName || "N/A",
           user.phone || "N/A",
           user.email || "N/A",
@@ -190,15 +196,26 @@ function Registration() {
                     <CircularProgress />
                   ) : (
                     <>
-                      <Grid item xs={12} sm={2} style={{ width: 150 }}>
-                        <MDButton
-                          variant="outlined"
-                          color="success"
-                          fullWidth
-                          onClick={exportToCSV}
-                        >
-                          Export CSV
-                        </MDButton>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={2}>
+                          <TextField
+                            label="Referral Code"
+                            fullWidth
+                            value={referralCode}
+                            onChange={(e) => setReferralCode(e.target.value)}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} sm={2} style={{ width: 150 }}>
+                          <MDButton
+                            variant="outlined"
+                            color="success"
+                            fullWidth
+                            onClick={exportToCSV}
+                          >
+                            Export CSV
+                          </MDButton>
+                        </Grid>
                       </Grid>
                       <MDBox mt={2} display="flex" justifyContent="center">
                         <TableContainer
@@ -216,6 +233,9 @@ function Registration() {
                               >
                                 <thead style={{ background: "#efefef", fontSize: "14px" }}>
                                   <tr>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      Referral Code
+                                    </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Name
                                     </th>
@@ -236,6 +256,9 @@ function Registration() {
                                 <tbody style={{ fontSize: "15px" }}>
                                   {paginatedRows.map((row) => (
                                     <tr key={row.id}>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {row.referral_code || "N/A"}
+                                      </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.user?.first_name || "N/A"}{" "}
                                         {row.user?.last_name || "N/A"}

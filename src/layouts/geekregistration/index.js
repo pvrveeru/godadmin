@@ -32,6 +32,7 @@ function GeekRegistration() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem("userToken");
@@ -53,6 +54,7 @@ function GeekRegistration() {
           created_from: startDate.format("YYYY-MM-DD"),
           created_to: endDate.format("YYYY-MM-DD"),
           user_type: "geeker",
+          ...(referralCode && { referral_code: referralCode }),
         },
       });
 
@@ -63,7 +65,7 @@ function GeekRegistration() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, referralCode]);
 
   useEffect(() => {
     fetchUsers();
@@ -86,15 +88,18 @@ function GeekRegistration() {
     const email = row.email || "";
     const address = row.address || "";
     const displayName = row.display_name || "";
+    const referralCode = row.referral_code || "";
     return (
       email.toLowerCase().includes(searchQuery) ||
       address.toLowerCase().includes(searchQuery) ||
-      displayName.toLowerCase().includes(searchQuery)
+      displayName.toLowerCase().includes(searchQuery) ||
+      referralCode.toLowerCase().includes(searchQuery)
     );
   });
 
   const exportToCSV = () => {
     const headers = [
+      "Referral Code",
       "Registration type",
       "Display Name",
       "Company Name",
@@ -113,6 +118,7 @@ function GeekRegistration() {
         const registrationDate = row.createdAt ? dayjs(row.createdAt).format("DD-MM-YYYY") : "N/A";
 
         return [
+          row.referral_code || "N/A",
           row.registration_type || "N/A",
           row.display_name || "N/A",
           row.company_name || "N/A",
@@ -162,6 +168,7 @@ function GeekRegistration() {
                   <MDBox p={3}>
                     <Grid container spacing={2}>
                       <b style={{ lineHeight: "60px", marginLeft: "10px" }}>Search by</b>
+
                       <Grid item xs={12} sm={2}>
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
                           <DatePicker
@@ -201,15 +208,26 @@ function GeekRegistration() {
                     <CircularProgress />
                   ) : (
                     <>
-                      <Grid item xs={12} sm={2} style={{ width: 150 }}>
-                        <MDButton
-                          variant="outlined"
-                          color="success"
-                          fullWidth
-                          onClick={exportToCSV}
-                        >
-                          Export CSV
-                        </MDButton>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={2}>
+                          <TextField
+                            label="Referral Code"
+                            fullWidth
+                            value={referralCode}
+                            onChange={(e) => setReferralCode(e.target.value)}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} sm={2} style={{ width: 150 }}>
+                          <MDButton
+                            variant="outlined"
+                            color="success"
+                            fullWidth
+                            onClick={exportToCSV}
+                          >
+                            Export CSV
+                          </MDButton>
+                        </Grid>
                       </Grid>
 
                       <MDBox mt={2} display="flex" justifyContent="center">
@@ -228,6 +246,9 @@ function GeekRegistration() {
                               >
                                 <thead style={{ background: "#efefef", fontSize: "14px" }}>
                                   <tr>
+                                    <th style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                      Referral Code
+                                    </th>
                                     <th style={{ border: "1px solid #ddd", padding: "8px" }}>
                                       Registration type
                                     </th>
@@ -257,6 +278,9 @@ function GeekRegistration() {
                                 <tbody style={{ fontSize: "15px" }}>
                                   {paginatedRows.map((row) => (
                                     <tr key={row.id}>
+                                      <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                                        {row.referral_code || "N/A"}
+                                      </td>
                                       <td style={{ border: "1px solid #ddd", padding: "8px" }}>
                                         {row.registration_type || "N/A"}
                                       </td>
